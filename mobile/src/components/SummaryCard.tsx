@@ -13,19 +13,17 @@ interface SummaryCardProps {
   loading?: boolean;
 }
 
-function StatBox({
+function StatPill({
   label,
   value,
   color,
-  bgColor,
 }: {
   label: string;
   value: string;
   color: string;
-  bgColor: string;
 }) {
   return (
-    <View style={[styles.statBox, { backgroundColor: bgColor }]}>
+    <View style={styles.statPill}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -34,70 +32,60 @@ function StatBox({
 
 export default function SummaryCard({ summary, loading }: SummaryCardProps) {
   const fmt = (n: number) =>
-    `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   if (loading) {
     return (
       <View style={[styles.card, styles.loadingCard]}>
-        <ActivityIndicator color={Colors.accent} size="large" />
+        <ActivityIndicator color={Colors.accent} />
       </View>
     );
   }
 
+  const hasOverdue = summary && summary.overdueCount > 0;
+
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.dot} />
-        <Text style={styles.title}>My Ledger Summary</Text>
-        {summary && summary.overdueCount > 0 && (
+        <Text style={styles.headerLabel}>Total lent out</Text>
+        {hasOverdue && (
           <View style={styles.overdueChip}>
-            <Text style={styles.overdueChipText}>
-              {summary.overdueCount} overdue
-            </Text>
+            <Text style={styles.overdueChipText}>{summary!.overdueCount} overdue</Text>
           </View>
         )}
       </View>
 
-      {/* Big total */}
       <Text style={styles.totalAmount}>
         {summary ? fmt(summary.totalLent) : '—'}
       </Text>
-      <Text style={styles.totalLabel}>Total Lent</Text>
 
-      {/* Divider */}
+      {summary && summary.totalLoans > 0 && (
+        <Text style={styles.loanCount}>
+          across {summary.totalLoans} {summary.totalLoans === 1 ? 'loan' : 'loans'} · {summary.pendingCount} pending
+        </Text>
+      )}
+
       <View style={styles.divider} />
 
-      {/* Stats grid */}
       <View style={styles.statsRow}>
-        <StatBox
+        <StatPill
           label="Repaid"
           value={summary ? fmt(summary.totalRepaid) : '—'}
           color={Colors.success}
-          bgColor={Colors.successDim}
         />
-        <StatBox
+        <View style={styles.statSeparator} />
+        <StatPill
           label="Outstanding"
           value={summary ? fmt(summary.totalOutstanding) : '—'}
           color={Colors.accentLight}
-          bgColor={Colors.accentDim}
         />
-        <StatBox
+        <View style={styles.statSeparator} />
+        <StatPill
           label="Overdue"
           value={summary ? fmt(summary.overdueAmount) : '—'}
-          color={Colors.danger}
-          bgColor={Colors.dangerDim}
+          color={hasOverdue ? Colors.danger : Colors.textMuted}
         />
       </View>
-
-      {/* Footer counts */}
-      {summary && (
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {summary.totalLoans} loans total · {summary.pendingCount} pending
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -111,37 +99,24 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    // Glow effect via shadow
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
   },
   loadingCard: {
-    minHeight: 180,
+    minHeight: 140,
     alignItems: 'center',
     justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.accent,
-  },
-  title: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    fontWeight: '500',
-    letterSpacing: 0.8,
+  headerLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontWeight: '600',
     textTransform: 'uppercase',
-    flex: 1,
+    letterSpacing: 0.6,
   },
   overdueChip: {
     backgroundColor: Colors.dangerDim,
@@ -154,18 +129,19 @@ const styles = StyleSheet.create({
   overdueChipText: {
     color: Colors.danger,
     fontSize: FontSize.xs,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   totalAmount: {
     color: Colors.textPrimary,
     fontSize: FontSize.xxxl,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -1,
-  },
-  totalLabel: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
     marginTop: 2,
+  },
+  loanCount: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 4,
   },
   divider: {
     height: 1,
@@ -174,29 +150,23 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  statBox: {
-    flex: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
     alignItems: 'center',
+  },
+  statPill: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statSeparator: {
+    width: 1,
+    height: 28,
+    backgroundColor: Colors.border,
   },
   statValue: {
     fontSize: FontSize.md,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontWeight: '600',
+    marginBottom: 1,
   },
   statLabel: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-    fontWeight: '500',
-  },
-  footer: {
-    marginTop: Spacing.sm,
-    alignItems: 'center',
-  },
-  footerText: {
     color: Colors.textMuted,
     fontSize: FontSize.xs,
   },

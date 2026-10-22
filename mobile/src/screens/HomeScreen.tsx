@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   RefreshControl,
   Modal,
-  Animated,
   Platform,
   Alert,
 } from 'react-native';
@@ -26,8 +25,8 @@ type FilterTab = 'all' | 'pending' | 'repaid' | 'overdue';
 const TABS: { key: FilterTab; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Pending' },
-  { key: 'overdue', label: '⚠ Overdue' },
-  { key: 'repaid', label: '✓ Repaid' },
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'repaid', label: 'Repaid' },
 ];
 
 export default function HomeScreen({ onLogout }: HomeScreenProps) {
@@ -37,14 +36,10 @@ export default function HomeScreen({ onLogout }: HomeScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
-  const fabScale = useRef(new Animated.Value(1)).current;
 
   const fetchData = useCallback(async () => {
     try {
-      const [loansData, summaryData] = await Promise.all([
-        getLoans(),
-        getSummary(),
-      ]);
+      const [loansData, summaryData] = await Promise.all([getLoans(), getSummary()]);
       setLoans(loansData.loans);
       setSummary(summaryData.summary);
     } catch (err: unknown) {
@@ -58,7 +53,6 @@ export default function HomeScreen({ onLogout }: HomeScreenProps) {
     }
   }, [onLogout]);
 
-  // Load on mount
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -70,102 +64,84 @@ export default function HomeScreen({ onLogout }: HomeScreenProps) {
 
   const filteredLoans = loans.filter((loan) => {
     switch (activeTab) {
-      case 'pending':
-        return !loan.is_repaid && !loan.is_overdue;
-      case 'overdue':
-        return loan.is_overdue && !loan.is_repaid;
-      case 'repaid':
-        return loan.is_repaid;
-      default:
-        return true;
+      case 'pending': return !loan.is_repaid && !loan.is_overdue;
+      case 'overdue': return loan.is_overdue && !loan.is_repaid;
+      case 'repaid': return loan.is_repaid;
+      default: return true;
     }
   });
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+    Alert.alert('Sign out', 'Sign out of MiniLedger?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Log Out',
+        text: 'Sign out',
         style: 'destructive',
-        onPress: async () => {
-          await clearToken();
-          onLogout();
-        },
+        onPress: async () => { await clearToken(); onLogout(); },
       },
     ]);
   };
 
-  const animateFab = () => {
-    Animated.sequence([
-      Animated.timing(fabScale, { toValue: 0.9, duration: 80, useNativeDriver: true }),
-      Animated.spring(fabScale, { toValue: 1, friction: 4, useNativeDriver: true }),
-    ]).start();
-  };
-
   const renderHeader = () => (
     <View>
-      {/* Top Bar */}
+      {/* Top bar */}
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.greeting}>My Ledger</Text>
-          <Text style={styles.subGreeting}>Track money lent to friends</Text>
+          <Text style={styles.pageTitle}>My Ledger</Text>
+          {summary && (
+            <Text style={styles.pageSubtitle}>
+              {summary.totalLoans} {summary.totalLoans === 1 ? 'loan' : 'loans'} recorded
+            </Text>
+          )}
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>↩ Out</Text>
+        <TouchableOpacity onPress={handleLogout} style={styles.signOutBtn}>
+          <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Summary */}
       <SummaryCard summary={summary} loading={loading} />
 
       {/* Filter tabs */}
-      <View style={styles.tabsContainer}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tab,
-              activeTab === tab.key && styles.tabActive,
-            ]}
-            onPress={() => setActiveTab(tab.key)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab.key && styles.tabTextActive,
-              ]}
+      <View style={styles.tabsRow}>
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const showBadge = tab.key === 'overdue' && summary && summary.overdueCount > 0;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, isActive && styles.tabActive]}
+              onPress={() => setActiveTab(tab.key)}
             >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                {tab.label}
+              </Text>
+              {showBadge && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{summary!.overdueCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Section heading */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          {filteredLoans.length} {activeTab === 'all' ? 'total' : activeTab} entries
+      {/* List heading */}
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionLabel}>
+          {filteredLoans.length} {activeTab === 'all' ? 'total' : activeTab}
         </Text>
-        {summary && summary.overdueCount > 0 && activeTab !== 'overdue' && (
-          <TouchableOpacity onPress={() => setActiveTab('overdue')}>
-            <Text style={styles.overdueAlert}>
-              {summary.overdueCount} overdue ⚠
-            </Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
 
   const renderEmpty = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyEmoji}>💸</Text>
       <Text style={styles.emptyTitle}>
         {activeTab === 'all' ? 'No loans yet' : `No ${activeTab} loans`}
       </Text>
       <Text style={styles.emptySubtitle}>
         {activeTab === 'all'
-          ? 'Tap + to record money you\'ve lent'
+          ? "Tap + to record the first one"
           : 'Switch tabs to see other entries'}
       </Text>
     </View>
@@ -176,9 +152,7 @@ export default function HomeScreen({ onLogout }: HomeScreenProps) {
       <FlatList
         data={filteredLoans}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <LoanItem loan={item} onUpdate={fetchData} />
-        )}
+        renderItem={({ item }) => <LoanItem loan={item} onUpdate={fetchData} />}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={loading ? null : renderEmpty()}
         contentContainerStyle={styles.listContent}
@@ -193,21 +167,15 @@ export default function HomeScreen({ onLogout }: HomeScreenProps) {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* FAB */}
-      <Animated.View style={[styles.fabWrapper, { transform: [{ scale: fabScale }] }]}>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => {
-            animateFab();
-            setShowAddModal(true);
-          }}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      {/* Add button */}
+      <TouchableOpacity
+        style={styles.addBtn}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.addBtnText}>+</Text>
+      </TouchableOpacity>
 
-      {/* Add Loan Modal */}
       <Modal
         visible={showAddModal}
         animationType="slide"
@@ -215,10 +183,7 @@ export default function HomeScreen({ onLogout }: HomeScreenProps) {
         onRequestClose={() => setShowAddModal(false)}
       >
         <AddLoanScreen
-          onSuccess={() => {
-            setShowAddModal(false);
-            fetchData();
-          }}
+          onSuccess={() => { setShowAddModal(false); fetchData(); }}
           onCancel={() => setShowAddModal(false)}
         />
       </Modal>
@@ -237,36 +202,35 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 60 : Spacing.xl,
+    paddingTop: Platform.OS === 'ios' ? 56 : Spacing.xl,
     paddingBottom: Spacing.sm,
   },
-  greeting: {
+  pageTitle: {
     color: Colors.textPrimary,
     fontSize: FontSize.xxl,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
-  subGreeting: {
+  pageSubtitle: {
     color: Colors.textMuted,
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     marginTop: 2,
   },
-  logoutBtn: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: Radius.full,
+  signOutBtn: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
+    borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  logoutText: {
-    color: Colors.textSecondary,
+  signOutText: {
+    color: Colors.textMuted,
     fontSize: FontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  tabsContainer: {
+  tabsRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.md,
     marginTop: Spacing.md,
@@ -274,12 +238,15 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
     borderColor: Colors.border,
+    gap: 4,
   },
   tabActive: {
     backgroundColor: Colors.accentDim,
@@ -293,40 +260,42 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: Colors.accentLight,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  badge: {
+    backgroundColor: Colors.danger,
+    borderRadius: Radius.full,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  sectionRow: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
-  sectionTitle: {
+  sectionLabel: {
     color: Colors.textMuted,
     fontSize: FontSize.xs,
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  overdueAlert: {
-    color: Colors.danger,
-    fontSize: FontSize.xs,
-    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
   },
-  emptyEmoji: {
-    fontSize: 56,
-    marginBottom: Spacing.md,
-  },
   emptyTitle: {
-    color: Colors.textPrimary,
-    fontSize: FontSize.xl,
-    fontWeight: '700',
-    marginBottom: Spacing.sm,
+    color: Colors.textSecondary,
+    fontSize: FontSize.lg,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
   },
   emptySubtitle: {
     color: Colors.textMuted,
@@ -334,29 +303,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  fabWrapper: {
+  addBtn: {
     position: 'absolute',
     bottom: Spacing.xl,
     right: Spacing.lg,
-  },
-  fab: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  fabText: {
+  addBtnText: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '300',
-    lineHeight: 36,
+    lineHeight: 32,
     includeFontPadding: false,
   },
 });

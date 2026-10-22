@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -26,10 +26,7 @@ function formatDate(dateStr: string): string {
 
 function formatAmount(amount: string | number): string {
   const n = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return `₹${n.toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function getInitials(name: string): string {
@@ -40,46 +37,45 @@ function getInitials(name: string): string {
     .join('');
 }
 
-// Deterministic color from name
+const AVATAR_COLORS = [
+  '#5B6AF8', '#3AC97B', '#F05252', '#F0A030',
+  '#38BDF8', '#A78BFA', '#34D399', '#FB923C',
+];
+
 function avatarColor(name: string): string {
-  const palette = [
-    '#7C5CFC', '#22D3A5', '#FF5572', '#FFB547',
-    '#38BDF8', '#FB7185', '#A78BFA', '#34D399',
-  ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash += name.charCodeAt(i);
-  return palette[hash % palette.length];
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 export default function LoanItem({ loan, onUpdate }: LoanItemProps) {
-  const [loading, setLoading] = useState(false);
-  const scale = new Animated.Value(1);
+  const [acting, setActing] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
 
-  const handlePress = () => {
+  const pulse = () => {
     Animated.sequence([
-      Animated.timing(scale, { toValue: 0.97, duration: 80, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 1, duration: 80, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
     ]).start();
   };
 
-  const handleMarkRepaid = async () => {
+  const handleMarkRepaid = () => {
     Alert.alert(
-      'Mark as Repaid',
-      `Mark ₹${parseFloat(loan.amount).toLocaleString('en-IN')} from ${loan.friend_name} as repaid?`,
+      'Mark as repaid',
+      `${loan.friend_name} paid back ${formatAmount(loan.amount)}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Not yet', style: 'cancel' },
         {
-          text: 'Confirm',
-          style: 'default',
+          text: 'Yes, mark repaid',
           onPress: async () => {
-            setLoading(true);
+            setActing(true);
             try {
               await markRepaid(loan.id);
               onUpdate();
             } catch (err: unknown) {
               Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update');
             } finally {
-              setLoading(false);
+              setActing(false);
             }
           },
         },
@@ -89,22 +85,22 @@ export default function LoanItem({ loan, onUpdate }: LoanItemProps) {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Loan',
-      `Delete this entry for ${loan.friend_name}? This cannot be undone.`,
+      'Delete entry',
+      `Remove the loan for ${loan.friend_name}? This can't be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            setLoading(true);
+            setActing(true);
             try {
               await deleteLoan(loan.id);
               onUpdate();
             } catch (err: unknown) {
               Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete');
             } finally {
-              setLoading(false);
+              setActing(false);
             }
           },
         },
@@ -115,11 +111,17 @@ export default function LoanItem({ loan, onUpdate }: LoanItemProps) {
   const isOverdue = loan.is_overdue && !loan.is_repaid;
   const color = avatarColor(loan.friend_name);
 
+  const statusColor = loan.is_repaid
+    ? Colors.success
+    : isOverdue
+    ? Colors.danger
+    : Colors.accent;
+
   return (
-    <Animated.View style={[{ transform: [{ scale }] }]}>
+    <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={handlePress}
+        activeOpacity={0.75}
+        onPress={pulse}
         onLongPress={handleDelete}
         style={[
           styles.card,
@@ -127,78 +129,48 @@ export default function LoanItem({ loan, onUpdate }: LoanItemProps) {
           isOverdue && styles.cardOverdue,
         ]}
       >
-        {/* Left accent bar */}
-        <View
-          style={[
-            styles.accentBar,
-            {
-              backgroundColor: loan.is_repaid
-                ? Colors.success
-                : isOverdue
-                ? Colors.danger
-                : Colors.accent,
-            },
-          ]}
-        />
+        {/* Status bar on left edge */}
+        <View style={[styles.statusBar, { backgroundColor: statusColor }]} />
 
         {/* Avatar */}
-        <View style={[styles.avatar, { backgroundColor: color + '22', borderColor: color }]}>
-          <Text style={[styles.avatarText, { color }]}>
-            {getInitials(loan.friend_name)}
-          </Text>
+        <View style={[styles.avatar, { backgroundColor: color + '1A' }]}>
+          <Text style={[styles.avatarText, { color }]}>{getInitials(loan.friend_name)}</Text>
         </View>
 
-        {/* Main content */}
+        {/* Content */}
         <View style={styles.content}>
           <View style={styles.topRow}>
-            <Text style={styles.name} numberOfLines={1}>
-              {loan.friend_name}
-            </Text>
-            <Text
-              style={[
-                styles.amount,
-                loan.is_repaid && styles.amountRepaid,
-                isOverdue && styles.amountOverdue,
-              ]}
-            >
+            <Text style={styles.name} numberOfLines={1}>{loan.friend_name}</Text>
+            <Text style={[styles.amount, { color: statusColor }]}>
               {formatAmount(loan.amount)}
             </Text>
           </View>
 
           <View style={styles.bottomRow}>
-            <View style={styles.dueBadge}>
-              {isOverdue ? (
-                <Text style={[styles.dueText, styles.dueTextOverdue]}>
-                  ⚠ Due {formatDate(loan.due_date)}
-                </Text>
-              ) : loan.is_repaid ? (
-                <Text style={[styles.dueText, styles.dueTextRepaid]}>
-                  ✓ Repaid {loan.repaid_at ? formatDate(loan.repaid_at) : ''}
-                </Text>
-              ) : (
-                <Text style={styles.dueText}>
-                  Due {formatDate(loan.due_date)}
-                </Text>
-              )}
-            </View>
+            <Text style={[styles.dateText, isOverdue && styles.dateTextOverdue]}>
+              {loan.is_repaid
+                ? `Repaid ${loan.repaid_at ? formatDate(loan.repaid_at) : ''}`
+                : isOverdue
+                ? `Overdue since ${formatDate(loan.due_date)}`
+                : `Due ${formatDate(loan.due_date)}`}
+            </Text>
 
             {!loan.is_repaid && (
               <TouchableOpacity
                 onPress={handleMarkRepaid}
-                disabled={loading}
+                disabled={acting}
                 style={styles.repayBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text style={styles.repayBtnText}>
-                  {loading ? '...' : 'Repaid ✓'}
+                  {acting ? 'Saving…' : 'Mark repaid'}
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
           {loan.note ? (
-            <Text style={styles.note} numberOfLines={1}>
-              {loan.note}
-            </Text>
+            <Text style={styles.note} numberOfLines={1}>{loan.note}</Text>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -211,7 +183,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgCard,
     borderRadius: Radius.lg,
     marginHorizontal: Spacing.md,
-    marginVertical: Spacing.xs,
+    marginVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
@@ -219,21 +191,19 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   cardRepaid: {
-    opacity: 0.65,
+    opacity: 0.55,
   },
   cardOverdue: {
-    borderColor: Colors.dangerDim,
-    backgroundColor: '#1F1520',
+    borderColor: 'rgba(240,82,82,0.2)',
   },
-  accentBar: {
+  statusBar: {
     width: 3,
     alignSelf: 'stretch',
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1.5,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.md,
@@ -260,49 +230,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   amount: {
-    color: Colors.accentLight,
     fontSize: FontSize.md,
     fontWeight: '700',
     marginLeft: Spacing.sm,
-  },
-  amountRepaid: {
-    color: Colors.success,
-  },
-  amountOverdue: {
-    color: Colors.danger,
   },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4,
+    marginTop: 3,
   },
-  dueBadge: {
-    flex: 1,
-  },
-  dueText: {
+  dateText: {
     color: Colors.textMuted,
     fontSize: FontSize.xs,
     fontWeight: '500',
+    flex: 1,
   },
-  dueTextOverdue: {
+  dateTextOverdue: {
     color: Colors.danger,
   },
-  dueTextRepaid: {
-    color: Colors.success,
-  },
   repayBtn: {
-    backgroundColor: Colors.accentDim,
-    borderRadius: Radius.full,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: Colors.borderFocus,
+    borderColor: Colors.border,
   },
   repayBtnText: {
-    color: Colors.accentLight,
+    color: Colors.textSecondary,
     fontSize: FontSize.xs,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   note: {
     color: Colors.textMuted,

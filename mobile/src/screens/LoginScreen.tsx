@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { sendOtp, verifyOtp, saveToken } from '../api/client';
+import { sendOtp, verifyOtp } from '../api/client';
 import { Colors, FontSize, Radius, Spacing } from '../theme';
 
 interface LoginScreenProps {
@@ -27,63 +27,46 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(40)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
-  const dotScale = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(24)).current;
+  const cardFade = useRef(new Animated.Value(0)).current;
+  const cardSlide = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 700,
+        duration: 500,
+        easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
+        duration: 450,
+        easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Pulsing glow
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
-      ])
-    ).start();
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(cardFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(cardSlide, { toValue: 0, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]).start();
+    }, 150);
   }, []);
-
-  useEffect(() => {
-    if (step === 'otp') {
-      Animated.spring(dotScale, {
-        toValue: 1,
-        friction: 5,
-        tension: 120,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [step]);
 
   const handleSendOtp = async () => {
     if (!phone.trim()) {
-      Alert.alert('Phone required', 'Please enter your phone number');
+      Alert.alert('Enter your phone number', 'We need your number to send an OTP.');
       return;
     }
     setLoading(true);
     try {
       await sendOtp(phone.trim());
       setStep('otp');
-      Alert.alert(
-        '📱 OTP Sent!',
-        'Check the backend server logs for your 6-digit OTP code.',
-        [{ text: 'Got it' }]
-      );
     } catch (err: unknown) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to send OTP');
+      Alert.alert('Could not send OTP', err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -91,7 +74,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
   const handleVerifyOtp = async () => {
     if (!otp.trim() || otp.length < 4) {
-      Alert.alert('OTP required', 'Please enter the 6-digit OTP');
+      Alert.alert('Enter the OTP', 'Check the backend server logs for your 6-digit code.');
       return;
     }
     setLoading(true);
@@ -99,59 +82,50 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       await verifyOtp(phone.trim(), otp.trim());
       onLogin();
     } catch (err: unknown) {
-      Alert.alert('Invalid OTP', err instanceof Error ? err.message : 'Verification failed');
+      Alert.alert('Wrong OTP', err instanceof Error ? err.message : 'Verification failed. Try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      {/* Background gradient orbs */}
-      <Animated.View style={[styles.orb1, { opacity: glowOpacity }]} />
-      <Animated.View style={[styles.orb2, { opacity: glowAnim }]} />
-
       <Animated.View
         style={[
           styles.inner,
           { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
         ]}
       >
-        {/* Logo / Brand */}
+        {/* Brand block */}
         <View style={styles.brand}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoEmoji}>💸</Text>
+          <View style={styles.logoMark}>
+            <Text style={styles.logoLetter}>M</Text>
           </View>
           <Text style={styles.appName}>MiniLedger</Text>
-          <Text style={styles.tagline}>Track money lent to friends</Text>
+          <Text style={styles.tagline}>Know who owes you what</Text>
         </View>
 
-        {/* Card */}
-        <View style={styles.card}>
+        {/* Form card */}
+        <Animated.View
+          style={[
+            styles.card,
+            { opacity: cardFade, transform: [{ translateY: cardSlide }] },
+          ]}
+        >
           <Text style={styles.cardTitle}>
-            {step === 'phone' ? 'Enter your number' : 'Verify OTP'}
-          </Text>
-          <Text style={styles.cardSubtitle}>
-            {step === 'phone'
-              ? "We'll send you a one-time password"
-              : `Sent to ${phone} · check server logs`}
+            {step === 'phone' ? 'Sign in' : 'Enter your OTP'}
           </Text>
 
           {step === 'phone' ? (
             <>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputPrefix}>📞</Text>
+              <Text style={styles.fieldLabel}>Phone number</Text>
+              <View style={styles.inputRow}>
                 <TextInput
                   style={styles.input}
-                  placeholder="+91 9876543210"
+                  placeholder="+91 98765 43210"
                   placeholderTextColor={Colors.textMuted}
                   value={phone}
                   onChangeText={setPhone}
@@ -161,31 +135,29 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   onSubmitEditing={handleSendOtp}
                 />
               </View>
+
               <TouchableOpacity
                 style={[styles.btn, loading && styles.btnDisabled]}
                 onPress={handleSendOtp}
                 disabled={loading}
                 activeOpacity={0.8}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Send OTP →</Text>
-                )}
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnText}>Continue</Text>
+                }
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <Animated.View
-                style={[
-                  styles.inputWrapper,
-                  { transform: [{ scale: dotScale }] },
-                ]}
-              >
-                <Text style={styles.inputPrefix}>🔐</Text>
+              <Text style={styles.fieldLabel}>6-digit code</Text>
+              <Text style={styles.otpHint}>
+                Check your backend terminal for the OTP printed to logs.
+              </Text>
+              <View style={styles.inputRow}>
                 <TextInput
-                  style={styles.input}
-                  placeholder="6-digit code"
+                  style={[styles.input, styles.otpInput]}
+                  placeholder="— — — — — —"
                   placeholderTextColor={Colors.textMuted}
                   value={otp}
                   onChangeText={setOtp}
@@ -195,7 +167,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                   returnKeyType="done"
                   onSubmitEditing={handleVerifyOtp}
                 />
-              </Animated.View>
+              </View>
 
               <TouchableOpacity
                 style={[styles.btn, loading && styles.btnDisabled]}
@@ -203,28 +175,24 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 disabled={loading}
                 activeOpacity={0.8}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Verify & Login →</Text>
-                )}
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnText}>Verify & sign in</Text>
+                }
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.backBtn}
-                onPress={() => {
-                  setStep('phone');
-                  setOtp('');
-                }}
+                onPress={() => { setStep('phone'); setOtp(''); }}
               >
-                <Text style={styles.backBtnText}>← Change number</Text>
+                <Text style={styles.backBtnText}>Use a different number</Text>
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </Animated.View>
 
         <Text style={styles.disclaimer}>
-          🔒 Mock auth — OTP appears in server logs
+          Mock auth — OTP is printed in the server log, no SMS sent
         </Text>
       </Animated.View>
     </KeyboardAvoidingView>
@@ -237,26 +205,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg,
     justifyContent: 'center',
   },
-  orb1: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: Colors.accent,
-    top: -100,
-    right: -100,
-    filter: [{ blur: 80 }] as unknown as undefined,
-  },
-  orb2: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: Colors.success,
-    bottom: 50,
-    left: -80,
-    filter: [{ blur: 60 }] as unknown as undefined,
-  },
   inner: {
     paddingHorizontal: Spacing.lg,
   },
@@ -264,33 +212,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.accentDim,
-    borderWidth: 2,
-    borderColor: Colors.accent,
+  logoMark: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 15,
   },
-  logoEmoji: {
-    fontSize: 36,
+  logoLetter: {
+    color: '#fff',
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   appName: {
     color: Colors.textPrimary,
-    fontSize: FontSize.xxxl,
-    fontWeight: '800',
-    letterSpacing: -1,
+    fontSize: FontSize.xxl,
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   tagline: {
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     fontSize: FontSize.sm,
     marginTop: 4,
   },
@@ -300,76 +244,75 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.4,
-    shadowRadius: 32,
-    elevation: 20,
   },
   cardTitle: {
     color: Colors.textPrimary,
     fontSize: FontSize.xl,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  cardSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
+    fontWeight: '600',
     marginBottom: Spacing.lg,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  fieldLabel: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  otpHint: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginBottom: Spacing.sm,
+    lineHeight: 17,
+  },
+  inputRow: {
     backgroundColor: Colors.bgInput,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
   },
-  inputPrefix: {
-    fontSize: 18,
-    marginRight: Spacing.sm,
-  },
   input: {
-    flex: 1,
     color: Colors.textPrimary,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontWeight: '500',
+  },
+  otpInput: {
+    letterSpacing: 6,
+    fontSize: FontSize.xl,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   btn: {
     backgroundColor: Colors.accent,
     borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
   },
   btnDisabled: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
   btnText: {
     color: '#fff',
     fontSize: FontSize.md,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   backBtn: {
     alignItems: 'center',
     marginTop: Spacing.md,
+    paddingVertical: 6,
   },
   backBtnText: {
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     fontSize: FontSize.sm,
   },
   disclaimer: {
     textAlign: 'center',
     color: Colors.textMuted,
-    fontSize: FontSize.xs,
+    fontSize: 11,
     marginTop: Spacing.lg,
+    lineHeight: 16,
   },
 });

@@ -1,32 +1,32 @@
-// Design tokens for MiniLedger
+// Design tokens — warm neutral dark, clean & readable
 export const Colors = {
-  // Background layers
-  bg: '#0F0F23',
-  bgCard: '#1A1A35',
-  bgCardAlt: '#1E1E3A',
-  bgInput: '#141428',
+  // Backgrounds
+  bg: '#111214',
+  bgCard: '#1C1D20',
+  bgCardAlt: '#212326',
+  bgInput: '#18191C',
 
-  // Accent / brand
-  accent: '#7C5CFC',
-  accentLight: '#9B82FD',
-  accentDim: 'rgba(124,92,252,0.15)',
+  // Brand — warm indigo, not neon
+  accent: '#5B6AF8',
+  accentLight: '#8B96FF',
+  accentDim: 'rgba(91,106,248,0.12)',
 
-  // Status colors
-  success: '#22D3A5',
-  successDim: 'rgba(34,211,165,0.15)',
-  danger: '#FF5572',
-  dangerDim: 'rgba(255,85,114,0.15)',
-  warning: '#FFB547',
-  warningDim: 'rgba(255,181,71,0.15)',
+  // Status
+  success: '#3AC97B',
+  successDim: 'rgba(58,201,123,0.12)',
+  danger: '#F05252',
+  dangerDim: 'rgba(240,82,82,0.12)',
+  warning: '#F0A030',
+  warningDim: 'rgba(240,160,48,0.12)',
 
-  // Text
-  textPrimary: '#F0F0FF',
-  textSecondary: '#8888BB',
-  textMuted: '#555577',
+  // Text — warm whites, not blue-tinted
+  textPrimary: '#EDEEF2',
+  textSecondary: '#9A9CAD',
+  textMuted: '#5A5C6D',
 
-  // Borders
-  border: 'rgba(255,255,255,0.08)',
-  borderFocus: 'rgba(124,92,252,0.5)',
+  // Borders — very subtle
+  border: 'rgba(255,255,255,0.07)',
+  borderFocus: 'rgba(91,106,248,0.4)',
 };
 
 export const Spacing = {
@@ -39,10 +39,10 @@ export const Spacing = {
 };
 
 export const Radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
   full: 999,
 };
 
@@ -53,5 +53,5 @@ export const FontSize = {
   lg: 17,
   xl: 20,
   xxl: 26,
-  xxxl: 34,
+  xxxl: 32,
 };
