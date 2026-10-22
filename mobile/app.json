@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "MiniLedger",
+    "slug": "miniledger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F23"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.miniledger.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F23"
+      },
+      "package": "com.miniledger.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
